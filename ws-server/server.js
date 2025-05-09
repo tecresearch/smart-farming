@@ -4,7 +4,7 @@ const path = require('path');
 
 // Create HTTP server
 const app = express();
-const PORT = 81;
+const PORT = 80;
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
@@ -44,6 +44,8 @@ wss.on('connection', (ws) => {
     try {
       const data = JSON.parse(message);
       console.log('Received:', data);
+
+      // sendToDB(data);
       
       // Handle heartbeat response
       if (data.type === 'heartbeat') return;
