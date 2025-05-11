@@ -1,6 +1,6 @@
 
 // WebSocket connection
-const ws = new WebSocket('ws://192.168.1.7:81');
+const ws = new WebSocket('wss://smart-farming-v1.onrender.com');
 const sensorGrid = document.getElementById('sensorGrid');
 const sensorChartCanvas = document.getElementById('sensorChart');
 const graphModal = document.getElementById('graphModal');

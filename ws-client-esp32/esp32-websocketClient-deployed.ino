@@ -7,8 +7,8 @@ const char* ssid = "TCA@Admin";
 const char* password = "Shivam@9211";
 
 // WebSocket server details
-const char* websocket_server = "192.168.1.8";  // Your computer's IP
-const uint16_t websocket_port = 81;          // Match the port in your HTML file
+const char* websocket_server = "smart-farming-v1.onrender.com";  // Your computer's IP
+const uint16_t websocket_port = 443;          // Match the port in your HTML file
 
 WebSocketsClient webSocket;
 
@@ -73,13 +73,16 @@ void attemptWebSocketReconnect() {
     webSocket.begin(websocket_server, websocket_port, "/");
   }
 }
+float getTemperature(){
+    return random(150, 351) / 10.0;  // 15.0-35.0°C 
+}
 
 void sendSensorData() {
   // Create a JSON document with increased capacity
   DynamicJsonDocument doc(512);
   
   // Generate random sensor ID (1-100)
-  int sensorId = random(1, 101);
+  int sensorId = random(1, 10);
   doc["sensorId"] = "ESP32_" + String(sensorId);
   
   // Generate realistic sensor values based on type
@@ -87,16 +90,16 @@ void sendSensorData() {
   
   switch(sensorType) {
     case 0:  // Temperature
-      doc["temperature"] = random(150, 351) / 10.0;  // 15.0-35.0°C
+      doc["temperature"] =getTemperature();
       break;
     case 1:  // Humidity
-      doc["humidity"] = random(300, 860) / 10.0;     // 30.0-85.0%
+      doc["humidity"] = random(300, 860) / 10.0;     // 30.0-85.0% gethumidity();
       break;
     case 2:  // Soil moisture
-      doc["soilMoisture"] = random(100, 901) / 10.0; // 10.0-90.0%
+      doc["soilMoisture"] = random(100, 901) / 10.0; // 10.0-90.0% getsoilMoisture();
       break;
     case 3:  // Light level
-      doc["lightLevel"] = random(100, 1001);         // 100-1000 lux
+      doc["lightLevel"] = random(100, 1001);         // 100-1000 lux getlightLevel();
       break;
   }
   
