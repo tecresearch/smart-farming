@@ -3,25 +3,25 @@
 #include <ArduinoJson.h>
 
 // WiFi credentials
-const char* ssid = "TCA@Admin";
-const char* password = "Shivam@9211";
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
 
 // WebSocket server details
-const char* websocket_server = "smart-farming-v1.onrender.com";  // Your computer's IP
-const uint16_t websocket_port = 443;          // Match the port in your HTML file
+const char* websocket_server = "production-xhmr.onrender.com";
+const uint16_t websocket_port = 443;
 
 WebSocketsClient webSocket;
 
 // Sensor simulation variables
 unsigned long lastDataSend = 0;
-const long dataInterval = 5000;  // Send data every 5 seconds
+const long dataInterval = 5000;
 unsigned long lastReconnectAttempt = 0;
-const long reconnectInterval = 3000; // Reconnect every 3 seconds if disconnected
+const long reconnectInterval = 3000;
 
 void setup() {
   Serial.begin(115200);
-  
-  // Connect to WiFi with improved reliability
+
+  // Connect to WiFi
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -32,24 +32,25 @@ void setup() {
   Serial.print("Connected with IP: ");
   Serial.println(WiFi.localIP());
 
-  // Configure WebSocket connection with better settings
-  webSocket.begin(websocket_server, websocket_port, "/");
+  // Configure WebSocket
+  webSocket.beginSSL(websocket_server, websocket_port, "/");
   webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(2000);  // Faster reconnection
-  webSocket.enableHeartbeat(15000, 3000, 2);  // Ping every 15s, timeout after 3s, 2 retries
+  webSocket.setReconnectInterval(2000);
+  webSocket.enableHeartbeat(15000, 3000, 2);
+ 
 }
 
 void loop() {
   webSocket.loop();
-  
-  // Handle WiFi and WebSocket reconnection
+
+  // Reconnect WiFi if needed
   if (WiFi.status() != WL_CONNECTED) {
     attemptWiFiReconnect();
   } else if (!webSocket.isConnected()) {
     attemptWebSocketReconnect();
   }
-  
-  // Send sensor data at regular intervals when connected
+
+  // Send data
   if (webSocket.isConnected() && millis() - lastDataSend > dataInterval) {
     lastDataSend = millis();
     sendSensorData();
@@ -73,44 +74,38 @@ void attemptWebSocketReconnect() {
     webSocket.begin(websocket_server, websocket_port, "/");
   }
 }
-float getTemperature(){
-    return random(150, 351) / 10.0;  // 15.0-35.0°C 
+
+float getTemperature() {
+  return random(150, 351) / 10.0;  // 15.0–35.0°C
 }
 
 void sendSensorData() {
-  // Create a JSON document with increased capacity
   DynamicJsonDocument doc(512);
-  
-  // Generate random sensor ID (1-100)
+
   int sensorId = random(1, 10);
   doc["sensorId"] = "ESP32_" + String(sensorId);
-  
-  // Generate realistic sensor values based on type
-  int sensorType = sensorId % 4;  // 0-3 for different sensor types
-  
+
+  int sensorType = sensorId % 4;
   switch(sensorType) {
-    case 0:  // Temperature
-      doc["temperature"] =getTemperature();
+    case 0:
+      doc["temperature"] = getTemperature();
       break;
-    case 1:  // Humidity
-      doc["humidity"] = random(300, 860) / 10.0;     // 30.0-85.0% gethumidity();
+    case 1:
+      doc["humidity"] = random(300, 860) / 10.0;
       break;
-    case 2:  // Soil moisture
-      doc["soilMoisture"] = random(100, 901) / 10.0; // 10.0-90.0% getsoilMoisture();
+    case 2:
+      doc["soilMoisture"] = random(100, 901) / 10.0;
       break;
-    case 3:  // Light level
-      doc["lightLevel"] = random(100, 1001);         // 100-1000 lux getlightLevel();
+    case 3:
+      doc["lightLevel"] = random(100, 1001);
       break;
   }
-  
-  // Add timestamp
+
   doc["timestamp"] = millis();
-  
-  // Serialize JSON to string
+
   String jsonString;
   serializeJson(doc, jsonString);
-  
-  // Send via WebSocket with error handling
+
   if (webSocket.sendTXT(jsonString)) {
     Serial.println("Sent: " + jsonString);
   } else {
@@ -125,18 +120,21 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       break;
     case WStype_CONNECTED:
       Serial.println("[WSc] Connected to server");
-      // Send initial handshake
       webSocket.sendTXT("{\"type\":\"handshake\",\"device\":\"ESP32\"}");
       break;
-    case WStype_TEXT:
-      Serial.printf("[WSc] Received text: %s\n", payload);
-      // Handle server pings
-      if (strncmp((char*)payload, "ping", 4) == 0) {
+    case WStype_TEXT: {
+      String message = "";
+      for (size_t i = 0; i < length; i++) {
+        message += (char)payload[i];
+      }
+      Serial.println("[WSc] Received text: " + message);
+      if (message.startsWith("ping")) {
         webSocket.sendTXT("pong");
       }
       break;
+    }
     case WStype_ERROR:
-      Serial.printf("[WSc] Error: %s\n", payload);
+      Serial.println("[WSc] Error occurred.");
       break;
     case WStype_PING:
       Serial.println("[WSc] Received ping");

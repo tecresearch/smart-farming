@@ -1,67 +1,58 @@
+require('dotenv').config();
 const WebSocket = require('ws');
 const express = require('express');
 const path = require('path');
 
-// Create HTTP server
+// Create Express app
 const app = express();
-const PORT = 80;
-const server = app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
 
-// Serve static files (your dashboard HTML)
+// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create WebSocket server
+// Create HTTP server (Render will automatically handle HTTPS)
+const server = require('http').createServer(app);
+
+// WebSocket server
 const wss = new WebSocket.Server({ server });
 
-// Store connected clients and sensor data
 const clients = new Set();
 const sensorData = new Map();
 
 wss.on('connection', (ws) => {
-  console.log('New client connected');
+  console.log(`New client connected`);
   clients.add(ws);
-  
-  // Send existing sensor data to new client
+
+  // Send existing sensor data on connect
   sensorData.forEach((data, sensorId) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        sensorId,
-        ...data
-      }));
+      ws.send(JSON.stringify({ sensorId, ...data }));
     }
   });
 
-  // Heartbeat system
+  // Heartbeat
   const heartbeatInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'heartbeat' }));
     }
   }, 15000);
 
+  // Handle messages
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
       console.log('Received:', data);
 
-      // sendToDB(data);
-      
-      // Handle heartbeat response
       if (data.type === 'heartbeat') return;
-      
-      // Store sensor data
+
       if (data.sensorId) {
         if (!sensorData.has(data.sensorId)) {
           sensorData.set(data.sensorId, {});
         }
-        
-        // Update sensor data with timestamp
         const sensor = sensorData.get(data.sensorId);
         Object.assign(sensor, data);
         sensor.lastUpdated = new Date().toISOString();
-        
-        // Broadcast to all clients
+
         clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
@@ -84,7 +75,7 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Cleanup disconnected clients periodically
+// Clean up disconnected clients
 setInterval(() => {
   clients.forEach(client => {
     if (client.readyState !== WebSocket.OPEN) {
@@ -92,3 +83,18 @@ setInterval(() => {
     }
   });
 }, 30000);
+
+// Start server
+server.listen(PORT, '0.0.0.0', () => {
+  const isProduction = !!process.env.RENDER;
+  console.log(`=================================`);
+  console.log(`Server running in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
+  console.log(`Port: ${PORT}`);
+  console.log(`WebSocket endpoint: ${isProduction 
+    ? `wss://${process.env.RENDER_EXTERNAL_HOSTNAME}` 
+    : `ws://localhost:${PORT}`}`);
+  console.log(`HTTP endpoint: ${isProduction 
+    ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` 
+    : `http://localhost:${PORT}`}`);
+  console.log(`=================================`);
+});

@@ -76,9 +76,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
    <script>
 
-    
+    const wss_server=prompt("Enter you websocket server");
 // WebSocket connection
-const ws = new WebSocket('wss://smart-farming-v1.onrender.com');
+const ws = new WebSocket(`${wss_server}`);
 const sensorGrid = document.getElementById('sensorGrid');
 const sensorChartCanvas = document.getElementById('sensorChart');
 const graphModal = document.getElementById('graphModal');
@@ -180,6 +180,12 @@ ws.onopen = function() {
 ws.onmessage = function(event) {
     try {
         const data = JSON.parse(event.data);
+      if (data.type === 'heartbeat') {
+        console.log('❤️ Heartbeat received');
+        // Optionally respond to heartbeat
+        ws.send(JSON.stringify({ type: 'pong' }));
+      }
+      
         const sensorId = data.sensorId;
         const timestamp = new Date().toLocaleTimeString();
         totalDataPoints++;
